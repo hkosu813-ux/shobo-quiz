@@ -52,7 +52,7 @@ h2{font-size:16px;margin:0 0 10px;color:var(--ink2);font-weight:600;}
 .qhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-family:var(--mono);font-size:13px;color:var(--ink2);}
 .timer{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink);}
 .timer.warn{color:var(--stamp);}
-.qcard{border:1px solid var(--line);padding:16px 14px;background:var(--paper2);margin-bottom:14px;}
+.qcard{border:1px solid var(--line);padding:16px 14px;background:var(--paper);margin-bottom:14px;}
 .qsec{font-size:11px;color:var(--ink2);letter-spacing:.06em;margin-bottom:6px;}
 .qtext{font-size:16.5px;line-height:1.65;white-space:pre-wrap;}
 .choices{margin-top:14px;}
@@ -515,6 +515,8 @@ let view="home";
 let currentSec=null;
 
 function esc(s){return (s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+/* onclick="..."（二重引用符属性）の中に安全に埋め込むための、単一引用符JS文字列リテラルを生成 */
+function jsStr(s){ return "'" + String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'") + "'"; }
 
 function render(){
   const app=document.getElementById("app");
@@ -580,7 +582,7 @@ function renderSectionList(){
   let rows = secs.map(sec=>{
     const items=ALL().filter(d=>d.sec===sec);
     const wrongIn = items.filter(d=>(prog[d.id]&&prog[d.id].wrong>=2)).length;
-    return `<button class="row" onclick="startSession(ALL().filter(d=>d.sec===${JSON.stringify(sec)}),'practice')">
+    return `<button class="row" onclick="startSession(ALL().filter(d=>d.sec===${jsStr(sec)}),'practice')">
       <span class="lbl">${esc(sec)}${wrongIn?`<small>弱点 ${wrongIn}問あり</small>`:""}</span>
       <span class="badge">${items.length}</span></button>`;
   }).join("");
@@ -615,11 +617,11 @@ function renderQuiz(){
     const isFlagged = !!(prog[q.id] && prog[q.id].flagged);
     stampHtml = `<div class="stampwrap"><div id="stampEl" class="stamp ${correct?'ok':''}">${correct?'正解':'不正解'}</div><div id="capEl" class="stampcaption ${correct?'ok':''}">${esc(capText)}</div></div>`;
     noteHtml = `<div class="note"><b>解説：</b>${esc(q.exp||"")}</div>
-    <button class="btn ${isFlagged?'':'line'}" style="margin-top:12px" onclick="toggleUnderstand(${JSON.stringify(q.id)})">${isFlagged ? '🔖 復習リストに追加済み（タップで解除）' : '🤔 よくわかっていない（復習リストに追加）'}</button>
+    <button class="btn ${isFlagged?'':'line'}" style="margin-top:12px" onclick="toggleUnderstand(${jsStr(q.id)})">${isFlagged ? '🔖 復習リストに追加済み（タップで解除）' : '🤔 よくわかっていない（復習リストに追加）'}</button>
     <div class="airow">
-      <button id="qCopyBtn" class="aibtn" onclick="copyQuestion(${JSON.stringify(q.id)},'qCopyBtn')">📋 問題+解説をコピー</button>
-      <a class="aibtn" href="https://gemini.google.com/app" target="_blank" rel="noopener" onclick="tryCopyForAI(${JSON.stringify(q.id)})">Geminiで確認</a>
-      <a class="aibtn" href="https://chat.deepseek.com/" target="_blank" rel="noopener" onclick="tryCopyForAI(${JSON.stringify(q.id)})">DeepSeekで確認</a>
+      <button id="qCopyBtn" class="aibtn" onclick="copyQuestion(${jsStr(q.id)},'qCopyBtn')">📋 問題+解説をコピー</button>
+      <a class="aibtn" href="https://gemini.google.com/app" target="_blank" rel="noopener" onclick="tryCopyForAI(${jsStr(q.id)})">Geminiで確認</a>
+      <a class="aibtn" href="https://chat.deepseek.com/" target="_blank" rel="noopener" onclick="tryCopyForAI(${jsStr(q.id)})">DeepSeekで確認</a>
     </div>`;
     nextBtn = `<button class="btn" onclick="nextQ()">${S.idx<total-1?'次へ':'結果を見る'}</button>`;
   } else if(q.multi){
@@ -650,9 +652,9 @@ function renderResult(){
   const total=S.queue.length, correct=S.correct, rate=Math.round(correct/total*100);
   let missHtml = S.wrongIds.length ? `<div class="misslist">` + S.wrongIds.map(id=>{
     const it=ALL().find(d=>d.id===id); if(!it) return "";
-    return `<div class="missitem" onclick='reviewOne(${JSON.stringify(id)})'>
+    return `<div class="missitem" onclick="reviewOne(${jsStr(id)})">
       <div class="m1">${esc(it.sec)}</div>${esc(it.q.split("\\n")[0])}
-      <button id="mb-${esc(id)}" class="aibtn small" onclick="event.stopPropagation();copyQuestion(${JSON.stringify(id)},${JSON.stringify('mb-'+id)})">📋 コピー</button></div>`;
+      <button id="mb-${esc(id)}" class="aibtn small" onclick="event.stopPropagation();copyQuestion(${jsStr(id)},${jsStr('mb-'+id)})">📋 コピー</button></div>`;
   }).join("") + `</div>` : `<p class="sub">誤答なし。完璧です。</p>`;
   return `
   <h1>結果</h1>
@@ -766,7 +768,7 @@ function renderStats(){
   const flagSummary = Object.entries(flagSecCount).sort((a,b)=>b[1]-a[1])
     .map(([sec,n])=>`<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--line);"><span>${esc(sec)}</span><span class="count-mono">${n}問</span></div>`).join("");
   const flagList = flagged.length ? `<div class="misslist">` + flagged.map(it=>{
-    return `<div class="missitem" onclick='reviewOne(${JSON.stringify(it.id)})'>
+    return `<div class="missitem" onclick="reviewOne(${jsStr(it.id)})">
       <div class="m1">${esc(it.sec)}</div>${esc(it.q.split("\\n")[0])}</div>`;
   }).join("") + `</div>` : `<p class="sub">「よくわかっていない」マークを付けた問題はまだありません。解答後の画面にあるボタンから追加できます。</p>`;
   return `<span class="backlink" onclick="view='home';render()">← ホームへ戻る</span>
